@@ -2,6 +2,7 @@
 using Client.Model;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -15,17 +16,20 @@ namespace Client
         static HttpClient client = new HttpClient();
 
         // ACTIVE USER, Insert username of the currently logged in user
-        static string activeUser = "A";
+        static string activeUser = "admin";
 
         static async Task Main(string[] args)
         {
+            //  Before you start, Remeber to Update-database and then seed
+            
+            await Seed();
 
-            //  Register user model
+            //  Register user model(will get role Emplaoyee by default but can be updated in update)
             var regUser = new RegisterUser
             {
-                UserName = "A",
-                FirstName = "Ase",
-                LastName = "Deo",
+                UserName = "B",
+                FirstName = "BAse",
+                LastName = "BDeo",
                 Password = "Sallad1.",
                 ConfirmPassword = "Sallad1.",
                 Country = "Sweden"
@@ -34,36 +38,45 @@ namespace Client
             //  Login model
             var authUser = new LoginModel
             {
-                Username = "A",
+                Username = "B",
                 Password = "Sallad1."
             };
 
-            // Update other user (by username), leave empty if updating own information
+            // Update other user (by username), leave empty if updating own information. Only admin can do this
             var userToUpdate = "";
-            // update model
+            // update model(enter fields you want to update)
             var updateUser = new UpdateUserModel
             {
-                UserName = "userName",
-                FirstName = "firstName",
-                LastName = "lastName",
-                Password = "password",
-                ConfirmPassword = "confirmPassword",
-                Country = "country",
-                Role = "role"
+                UserName = "",
+                FirstName = "",
+                LastName = "",
+                Password = "",
+                ConfirmPassword = "",
+                Country = "",
+                Role = ""
             };
 
+            //  Enter employeeID if you want to retrieve employees orders (Only for Admin & VD)
+            int? getEmployeesOrders = null;
 
+            //  Enter country to retrieve orders(Can't be empty)
+            string country = "USA";
+
+
+            //  METHODS to call the api
+
+            //await RefreshToken();                     // Refresha Tokens
             //await RegisterUser(regUser);            // Skapa användare
             //await AuthenticateUser(authUser);       // Logga in
             //await UpdateUser(updateUser, userToUpdate);   //   Uppdatera user
-            await ViewUsers();                         // Hämta users (admin & VD) 
+            //await ViewUsers();                         // Hämta users (admin & VD) 
+            //await GetMyOrders(getEmployeesOrders);    //  Hämta egna ordrar(samt andras för Vd och admin)
+            //await GetCountryOrders(country);          //  Hämta ordrar från ett specifikt land
+            //await GetAllOrders();                     //  Hämta alla ordrar
 
-            //await RefreshToken(client, user);       // Refresha Token
-            //await ShowAccounts(client, user);       // Kolla access
-            //await RefreshToken(client, user);       // Refresha Token
-            //await ShowAccounts(client, user);       // Kolla access
+
+
             Console.ReadLine();
-
         }
 
         private static async Task RegisterUser(RegisterUser request)
@@ -114,8 +127,7 @@ namespace Client
                         Expires = response.RefreshToken.Expires,
                         Token = response.RefreshToken.Token
                     };
-                    context.Add(token);
-                    context.Add(refreshToken);
+
                     user.Token = token;
                     user.RefreshToken = refreshToken;
                     context.Update(user);
@@ -130,6 +142,7 @@ namespace Client
         }
 
         private static async Task UpdateUser(UpdateUserModel request, string updateUser = "")
+        
         {
             try
             {
@@ -141,7 +154,7 @@ namespace Client
                 }
 
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user.Token.Payload);
-                var response = await client.PostAsJsonAsync("https://localhost:5001/api/user/updateuser/" + updateUser, request);
+                var response = await client.PutAsJsonAsync("https://localhost:5001/api/user/updateuser/" + updateUser, request);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -149,8 +162,10 @@ namespace Client
                     {
                         user.UserName = request.UserName;
                         await context.SaveChangesAsync();
-                        Console.WriteLine("User updated successfully");
+                        
                     }
+                
+                    Console.WriteLine("User updated successfully");
                 }
 
             }
@@ -162,24 +177,38 @@ namespace Client
 
         private static async Task RefreshToken()
         {
-            var user = context.Users.Where(u => u.UserName == activeUser).Include(t => t.RefreshToken).FirstOrDefault();
+            var user = await context.Users.Where(u => u.UserName == activeUser).Include(t => t.RefreshToken).FirstOrDefaultAsync();
 
             if (user.RefreshToken.IsExpired)
             {
-                throw new Exception("RfreshToken has expiered, log in again");
+                throw new Exception("RefreshToken has expiered, log in again");
             }
 
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user.RefreshToken.Token);
-            var response = await client.PostAsJsonAsync("http://localhost:5001/api/User/RefreshToken", user.RefreshToken.Token);
+            var request = new RefreshTokenRequest() { RefreshToken = user.RefreshToken.Token };
+            var response = await client.PostAsJsonAsync("https://localhost:5001/api/User/RefreshToken", request);
+            var newTokens = await response.Content.ReadAsAsync<Response>();
 
             if (response.IsSuccessStatusCode)
             {
-                var updateToken = await response.Content.ReadAsAsync<AuthenticateResponse>();
-                user.RefreshToken = updateToken.RefreshToken;
-                user.JwtToken = updateToken.JwtToken;
+                Token token = new Token
+                {
+                    Expires = newTokens.Token.Expires,
+                    Payload = newTokens.Token.Payload,
+                };
+                RefreshToken refreshToken = new RefreshToken
+                {
+                    Created = newTokens.RefreshToken.Created,
+                    Expires = newTokens.RefreshToken.Expires,
+                    Token = newTokens.RefreshToken.Token
+                };
+
+                user.Token = token;
+                user.RefreshToken = refreshToken;
+                context.Update(user);
+                await context.SaveChangesAsync();
             }
 
-            return user;
+            Console.WriteLine(newTokens.Message);
         }
 
         private static async Task ViewUsers()
@@ -198,15 +227,183 @@ namespace Client
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var print = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine(print);
+                    var users = await response.Content.ReadAsStringAsync();
+                    string[] split = users.Split("},{");
+                    foreach (var item in split)
+                    {
+                        Console.WriteLine($"{item}\n");
+                    }
                 }
+                else
+                    Console.WriteLine(response.ReasonPhrase);
+               
             }
             catch
             {
-                Console.WriteLine("Something went wrong");
+                Console.WriteLine("Something went wrong(OR your token has expired)");
             }
         }
-    }
 
+        private static async Task GetMyOrders(int? employeeId)
+        {
+            var user = context.Users.Where(u => u.UserName == activeUser).Include(t => t.Token).FirstOrDefault();
+
+            if (user.Token.IsExpired)
+            {
+                throw new ApplicationException("Token has expiered, refresh token or log in again");
+            }
+
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user.Token.Payload);
+            var response = await client.GetAsync("https://localhost:5001/api/order/GetMyOrders/" + employeeId);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var orders = await response.Content.ReadAsStringAsync();
+                string[] split = orders.Split("},{");
+                foreach (var item in split)
+                {
+                    Console.WriteLine($"{item}\n\n");
+                }
+
+            }
+
+            else
+                Console.WriteLine(response.ReasonPhrase);
+        }
+
+        private static async Task GetCountryOrders(string country)
+        {
+            var user = context.Users.Where(u => u.UserName == activeUser).Include(t => t.Token).FirstOrDefault();
+
+            if (user.Token.IsExpired)
+            {
+                throw new ApplicationException("Token has expiered, refresh token or log in again");
+            }
+
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user.Token.Payload);
+            var response = await client.GetAsync("https://localhost:5001/api/order/GetCountryOrders/" + country);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var orders = await response.Content.ReadAsStringAsync();
+                string[] split = orders.Split("},{");
+                foreach (var item in split)
+                {
+                    Console.WriteLine($"{item}\n\n");
+                }
+
+            }
+
+            else
+                Console.WriteLine(response.ReasonPhrase);
+        }
+
+        private static async Task GetAllOrders()
+        {
+            var user = context.Users.Where(u => u.UserName == activeUser).Include(t => t.Token).FirstOrDefault();
+
+            if (user.Token.IsExpired)
+            {
+                throw new ApplicationException("Token has expiered, refresh token or log in again");
+            }
+
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user.Token.Payload);
+            var response = await client.GetAsync("https://localhost:5001/api/order/GetAllOrders/");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var orders = await response.Content.ReadAsStringAsync();
+                string[] split = orders.Split("},{");
+                foreach (var item in split)
+                {
+                    Console.WriteLine($"{item}\n\n");
+                }
+
+            }
+
+            else
+                Console.WriteLine(response.ReasonPhrase);
+        }
+
+        private static async Task Seed()
+        {
+            List<RegisterUser> seedUsers = new List<RegisterUser>();
+            seedUsers.Add(new RegisterUser
+            {
+                UserName = "admin",
+                FirstName = "admin",
+                LastName = "admin",
+                Password = "Sallad1.",
+                ConfirmPassword = "Sallad1.",
+                Country = "Sweden"
+            });
+            seedUsers.Add(new RegisterUser
+            {
+                UserName = "VD",
+                FirstName = "Asjsj",
+                LastName = "Aoed",
+                Password = "Sallad1.",
+                ConfirmPassword = "Sallad1.",
+                Country = "Norway"
+            });
+            seedUsers.Add(new RegisterUser
+            {
+                UserName = "CountryManager",
+                FirstName = "Base",
+                LastName = "Beo",
+                Password = "Sallad1.",
+                ConfirmPassword = "Sallad1.",
+                Country = "Finland"
+            });
+            seedUsers.Add(new RegisterUser
+            {
+                UserName = "Employee",
+                FirstName = "Cisas",
+                LastName = "Ciwuw",
+                Password = "Sallad1.",
+                ConfirmPassword = "Sallad1.",
+                Country = "France"
+            });
+
+            foreach (var user in seedUsers)
+            {
+                await RegisterUser(user);
+            }
+
+            var authUser = new LoginModel
+            {
+                Username = "admin",
+                Password = "Sallad1."
+            };
+
+            await AuthenticateUser(authUser);
+
+            await UpdateUser(new UpdateUserModel
+            {
+                UserName = "",
+                FirstName = "",
+                LastName = "",
+                Password = "",
+                ConfirmPassword = "",
+                Country = "",
+                Role = "VD"
+            }, "VD");
+            await UpdateUser(new UpdateUserModel
+            {
+                UserName = "",
+                FirstName = "",
+                LastName = "",
+                Password = "",
+                ConfirmPassword = "",
+                Country = "",
+                Role = "CountryManager"
+            }, "CountryManager");
+
+
+            Console.WriteLine("Seeding done");
+
+        }
+    }
 }
+
+
