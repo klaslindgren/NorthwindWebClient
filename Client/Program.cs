@@ -15,14 +15,14 @@ namespace Client
         static ClientDBContext context = new ClientDBContext();
         static HttpClient client = new HttpClient();
 
-        // ACTIVE USER, Insert username of the currently logged in user
-        static string activeUser = "admin";
+        // ACTIVE USER, Insert username of the currently logged in user. DO NOT CHANGE before seed
+        static string activeUser = "Admin";
 
         static async Task Main(string[] args)
         {
             //  Before you start, Remeber to Update-database and then seed
             
-            await Seed();
+            //await Seed();
 
             //  Register user model(will get role Emplaoyee by default but can be updated in update)
             var regUser = new RegisterUser
@@ -38,7 +38,7 @@ namespace Client
             //  Login model
             var authUser = new LoginModel
             {
-                Username = "B",
+                Username = "Admin",
                 Password = "Sallad1."
             };
 
@@ -121,6 +121,7 @@ namespace Client
                         Expires = response.Token.Expires,
                         Payload = response.Token.Payload,
                     };
+
                     RefreshToken refreshToken = new RefreshToken
                     {
                         Created = response.RefreshToken.Created,
@@ -158,7 +159,7 @@ namespace Client
 
                 if (response.IsSuccessStatusCode)
                 {
-                    if (updateUser != "" && user.UserName != request.UserName)
+                    if (updateUser != "" && user.UserName != request.UserName && request.UserName != "")
                     {
                         user.UserName = request.UserName;
                         await context.SaveChangesAsync();
@@ -330,7 +331,7 @@ namespace Client
             List<RegisterUser> seedUsers = new List<RegisterUser>();
             seedUsers.Add(new RegisterUser
             {
-                UserName = "admin",
+                UserName = "Admin",
                 FirstName = "admin",
                 LastName = "admin",
                 Password = "Sallad1.",
@@ -339,7 +340,7 @@ namespace Client
             });
             seedUsers.Add(new RegisterUser
             {
-                UserName = "VD",
+                UserName = "Vd",
                 FirstName = "Asjsj",
                 LastName = "Aoed",
                 Password = "Sallad1.",
@@ -372,7 +373,7 @@ namespace Client
 
             var authUser = new LoginModel
             {
-                Username = "admin",
+                Username = "Admin",
                 Password = "Sallad1."
             };
 
@@ -386,8 +387,8 @@ namespace Client
                 Password = "",
                 ConfirmPassword = "",
                 Country = "",
-                Role = "VD"
-            }, "VD");
+                Role = "Vd"
+            }, "Vd");
             await UpdateUser(new UpdateUserModel
             {
                 UserName = "",
