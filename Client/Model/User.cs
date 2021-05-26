@@ -10,6 +10,5 @@ namespace Client.Model
         public string UserName { get; set; }
         public Token Token { get; set; }
         public RefreshToken RefreshToken { get; set; }
-
     }
 }
