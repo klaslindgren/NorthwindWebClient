@@ -1,4 +1,5 @@
-﻿Vid start av programmet: 
+﻿
+Vid start 
 kör Update-database för att skapa databasen
 
 KÖrning:

@@ -22,7 +22,7 @@ namespace Client
         {
             //  Before you start, Remeber to Update-database and then seed
 
-            //await Seed();
+            await Seed();
 
             //  Register user model(will get role Emplaoyee by default but can be updated in update)
             var regUser = new RegisterUser
@@ -212,6 +212,7 @@ namespace Client
                 Console.WriteLine("Something went wrong");
             }
         }
+
         private static async Task RefreshToken()
         {
             var user = await context.Users.Where(u => u.UserName == activeUser).Include(t => t.RefreshToken).FirstOrDefaultAsync();
@@ -397,7 +398,7 @@ namespace Client
                 UserName = "Employee",
                 FirstName = "Cisas",
                 LastName = "Ciwuw",
-                Password = "Sallad1.",
+                Password = "Salladskål1.",
                 ConfirmPassword = "Salladskål1.",
                 Country = "France"
             });
