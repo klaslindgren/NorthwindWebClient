@@ -24,7 +24,7 @@ namespace Client
 
             await Seed();
 
-            //  Register user model(will get role Emplaoyee by default but can be updated in update)
+            //  Register user model(will get role Emplaoyee by default but can be updated in updateuser)
             var regUser = new RegisterUser
             {
                 UserName = "KOSA",
