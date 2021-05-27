@@ -21,15 +21,15 @@ namespace Client
         static async Task Main(string[] args)
         {
             //  Before you start, Remeber to Update-database and then seed
-            
+
             //await Seed();
 
             //  Register user model(will get role Emplaoyee by default but can be updated in update)
             var regUser = new RegisterUser
             {
-                UserName = "B",
-                FirstName = "BAse",
-                LastName = "BDeo",
+                UserName = "KOSA",
+                FirstName = "BAasdsseas",
+                LastName = "BDsesddo",
                 Password = "Sallad1.",
                 ConfirmPassword = "Sallad1.",
                 Country = "Sweden"
@@ -39,7 +39,7 @@ namespace Client
             var authUser = new LoginModel
             {
                 Username = "Admin",
-                Password = "Sallad1."
+                Password = "Salladskål1."
             };
 
             // Update other user (by username), leave empty if updating own information. Only admin can do this
@@ -56,6 +56,11 @@ namespace Client
                 Role = ""
             };
 
+            var deleteUser = new DeleteRequest
+            {
+                UserName = "B"
+            };
+
             //  Enter employeeID if you want to retrieve employees orders (Only for Admin & VD)
             int? getEmployeesOrders = null;
 
@@ -69,6 +74,7 @@ namespace Client
             //await RegisterUser(regUser);            // Skapa användare
             //await AuthenticateUser(authUser);       // Logga in
             //await UpdateUser(updateUser, userToUpdate);   //   Uppdatera user
+            //await DeleteUser(deleteUser);                //  Radera användare
             //await ViewUsers();                         // Hämta users (admin & VD) 
             //await GetMyOrders(getEmployeesOrders);    //  Hämta egna ordrar(samt andras för Vd och admin)
             //await GetCountryOrders(country);          //  Hämta ordrar från ett specifikt land
@@ -143,11 +149,11 @@ namespace Client
         }
 
         private static async Task UpdateUser(UpdateUserModel request, string updateUser = "")
-        
+
         {
             try
             {
-                var user = context.Users.Where(u => u.UserName == activeUser).Include(t=> t.Token).FirstOrDefault();
+                var user = context.Users.Where(u => u.UserName == activeUser).Include(t => t.Token).FirstOrDefault();
 
                 if (user.Token.IsExpired)
                 {
@@ -163,9 +169,9 @@ namespace Client
                     {
                         user.UserName = request.UserName;
                         await context.SaveChangesAsync();
-                        
+
                     }
-                
+
                     Console.WriteLine("User updated successfully");
                 }
 
@@ -176,6 +182,36 @@ namespace Client
             }
         }
 
+        private static async Task DeleteUser(DeleteRequest request)
+        {
+            try
+            {
+                var user = context.Users.Where(u => u.UserName == activeUser).Include(t => t.Token).FirstOrDefault();
+
+                if (user.Token.IsExpired)
+                {
+                    throw new Exception("Token has expiered, refresh token or log in again");
+                }
+
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", user.Token.Payload);
+                var response = await client.PostAsJsonAsync("https://localhost:5001/api/user/deleteuser/", request);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var deletedUser = context.Users.Where(u => u.UserName == request.UserName).FirstOrDefault();
+                    context.Remove(deletedUser);
+                    await context.SaveChangesAsync();
+
+
+                    Console.WriteLine("User has been deleted");
+                }
+
+            }
+            catch
+            {
+                Console.WriteLine("Something went wrong");
+            }
+        }
         private static async Task RefreshToken()
         {
             var user = await context.Users.Where(u => u.UserName == activeUser).Include(t => t.RefreshToken).FirstOrDefaultAsync();
@@ -237,7 +273,7 @@ namespace Client
                 }
                 else
                     Console.WriteLine(response.ReasonPhrase);
-               
+
             }
             catch
             {
@@ -334,8 +370,8 @@ namespace Client
                 UserName = "Admin",
                 FirstName = "admin",
                 LastName = "admin",
-                Password = "Sallad1.",
-                ConfirmPassword = "Sallad1.",
+                Password = "Salladskål1.",
+                ConfirmPassword = "Salladskål1.",
                 Country = "Sweden"
             });
             seedUsers.Add(new RegisterUser
@@ -343,8 +379,8 @@ namespace Client
                 UserName = "Vd",
                 FirstName = "Asjsj",
                 LastName = "Aoed",
-                Password = "Sallad1.",
-                ConfirmPassword = "Sallad1.",
+                Password = "Salladskål1.",
+                ConfirmPassword = "Salladskål1.",
                 Country = "Norway"
             });
             seedUsers.Add(new RegisterUser
@@ -352,8 +388,8 @@ namespace Client
                 UserName = "CountryManager",
                 FirstName = "Base",
                 LastName = "Beo",
-                Password = "Sallad1.",
-                ConfirmPassword = "Sallad1.",
+                Password = "Salladskål1.",
+                ConfirmPassword = "Salladskål1.",
                 Country = "Finland"
             });
             seedUsers.Add(new RegisterUser
@@ -362,7 +398,7 @@ namespace Client
                 FirstName = "Cisas",
                 LastName = "Ciwuw",
                 Password = "Sallad1.",
-                ConfirmPassword = "Sallad1.",
+                ConfirmPassword = "Salladskål1.",
                 Country = "France"
             });
 
@@ -374,7 +410,7 @@ namespace Client
             var authUser = new LoginModel
             {
                 Username = "Admin",
-                Password = "Sallad1."
+                Password = "Salladskål1."
             };
 
             await AuthenticateUser(authUser);
